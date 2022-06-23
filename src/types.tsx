@@ -57,3 +57,9 @@ export interface IFormattedData {
         }
     };
 }
+
+export interface IFormattedWorkoutData {
+    [date: string]: {
+        [index: string]: IWorkout
+    };
+}

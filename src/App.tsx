@@ -1,6 +1,6 @@
 import React from 'react';
 import './App.css';
-import {IData, IFormattedData} from './types';
+import {IData, IFormattedData, IFormattedWorkoutData} from './types';
 
 function importAll(r: any) {
     return r.keys().map(r);
@@ -13,6 +13,7 @@ function App() {
     function generateBottom() {
 
         let formattedData: IFormattedData = {};
+        let formattedWorkoutData: IFormattedWorkoutData = {};
         let i = 0;
         for (let data of dataPoints) {
             if (i >= 30) {
@@ -67,7 +68,11 @@ function App() {
             const workouts = data.data.workouts;
             for(let workout of workouts){
                 let date = workout.start.split(" ")[0]
-                console.log(workout);
+
+                if(!(date in formattedWorkoutData)){
+                    formattedWorkoutData[date] = {};
+                }
+                formattedWorkoutData[date][workout.name] = workout;
             }
 
 
@@ -128,10 +133,51 @@ function App() {
                     }
                 }
             }
+
+            let appendableWorkout: string[] = [];
+            if(date in formattedWorkoutData){
+                for(let workout in formattedWorkoutData[date]){
+                    let workoutData = formattedWorkoutData[date][workout];
+
+                    let thisWorkout = `${workoutData.name}\n`;
+
+                    for(let item in workoutData) {
+                        type ObjectKey = keyof typeof workoutData;
+                        let individualData = workoutData[item as ObjectKey];
+
+                        if (typeof individualData !== "string") {
+                            switch (item) {
+                                case "maxHeartRate": {
+                                    thisWorkout = thisWorkout + `Max Heartrate: ${Math.round(individualData.qty)} bpm\n`;
+                                    break;
+                                }
+                                case "avgHeartRate": {
+                                    thisWorkout = thisWorkout + `Avg Heartrate: ${Math.round(individualData.qty)} bpm\n`;
+                                    break;
+                                }
+                                case "intensity": {
+                                    thisWorkout = thisWorkout + `Intensity: ${Math.round(individualData.qty)} ${individualData.units}\n`;
+                                    break;
+                                }
+                                case "stepCount": {
+                                    thisWorkout = thisWorkout + `Steps Taken: ${Math.round(individualData.qty)}\n`;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    appendableWorkout.push(thisWorkout);
+                }
+            }
+
+
             bottomArr.push(
                 <div key={i} style={{padding: "10px", display: "flex", flexDirection: "column"}}>
                     <u><b>Date: {date}</b></u>
                     {appendable.split('\n').map((str, it) => <div style={{display: "flex", justifyContent: "left"}} key={it}>{str}</div>)}
+                    <br/><u><b>{appendableWorkout.length > 0 ? "Workouts":""}</b></u>
+                    {appendableWorkout.map((workout, iw) => <div key={iw} style={{display: "flex", flexDirection: "column", justifyContent: "left", padding: "5px 0"}}> {workout.split('\n').map((str, it) => <div style={{display: "flex", justifyContent: "left"}} key={it}>{str}</div>)}</div>)}
                 </div>
             )
             i++;
