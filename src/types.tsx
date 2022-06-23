@@ -18,9 +18,32 @@ export interface IDataMinMax {
     }[],
 }
 
+export interface IWorkout {
+    start: string,
+    end: string,
+    name: string,
+    maxHeartRate: {
+        qty: number,
+        units: string,
+    },
+    avgHeartRate: {
+        qty: number,
+        units: string,
+    },
+    intensity: {
+        qty: number,
+        units: string
+    },
+    stepCount: {
+        qty: number,
+        units: string
+    }
+}
+
 export interface IData {
     data: {
         metrics: (IDataMinMax | IDataQuantity)[]
+        workouts: IWorkout[]
     }
 }
 

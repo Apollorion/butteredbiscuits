@@ -27,7 +27,9 @@ function App() {
                         // only process weight_body_mass once
                         if (metric.name === "weight_body_mass") {
                             if (metric.data.length > 0) {
-                                formattedData[date] = {};
+                                if(!(date in formattedData)){
+                                    formattedData[date] = {};
+                                }
                                 formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
                             }
                         } else {
@@ -35,12 +37,10 @@ function App() {
                                 // @ts-ignore
                                 formattedData[date][metric.name].qty = Math.round(formattedData[date][metric.name].qty + point.qty);
                             } else {
-                                if(date in formattedData){
-                                    formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
-                                } else {
+                                if(!(date in formattedData)){
                                     formattedData[date] = {};
-                                    formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
                                 }
+                                formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
                             }
                         }
                     } else {
@@ -55,22 +55,30 @@ function App() {
                                 formattedData[date][metric.name].max = point.Max;
                             }
                         } else {
-                            if(date in formattedData){
-                                formattedData[date][metric.name] = {unit: metric.units, min: point.Min, max: point.Max};
-                            } else {
+                            if(!(date in formattedData)){
                                 formattedData[date] = {};
-                                formattedData[date][metric.name] = {unit: metric.units, min: point.Min, max: point.Max};
                             }
+                            formattedData[date][metric.name] = {unit: metric.units, min: point.Min, max: point.Max};
                         }
                     }
                 }
             }
+
+            const workouts = data.data.workouts;
+            for(let workout of workouts){
+                let date = workout.start.split(" ")[0]
+                console.log(workout);
+            }
+
+
+
             i++;
         }
 
+        let dates = Object.keys(formattedData).sort((a: string, b: string) => new Date(b).getTime() - new Date(a).getTime());
         let bottomArr = [];
         i = 0;
-        for(let date in formattedData){
+        for(let date of dates){
             let data = formattedData[date];
 
             let appendable = "";
@@ -110,6 +118,10 @@ function App() {
                         appendable = appendable + `Heart Rate Max: ${item?.max} bpm\n`;
                         break;
                     }
+                    case "dietary_water": {
+                        appendable = appendable + `Water Drank: ${item.qty} fl oz\n`;
+                        break;
+                    }
                     default: {
                         console.log("Default switch hit, this is a problem.");
                         break;
@@ -117,9 +129,9 @@ function App() {
                 }
             }
             bottomArr.push(
-                <div key={i}>
-                    <b>Date: {date}</b><br/>
-                    {appendable.split('\n').map((str, it) => <div key={it}>{str}</div>)}<br/><br/>
+                <div key={i} style={{padding: "10px", display: "flex", flexDirection: "column"}}>
+                    <u><b>Date: {date}</b></u>
+                    {appendable.split('\n').map((str, it) => <div style={{display: "flex", justifyContent: "left"}} key={it}>{str}</div>)}
                 </div>
             )
             i++;
@@ -145,7 +157,10 @@ function App() {
                 Download the datasets <a href="https://github.com/Apollorion/butteredbiscuits/tree/main/src/data">here</a>!<br/>
             </p>
 
-            {generateBottom()}
+            <div style={{display: "flex", flexWrap: "wrap", justifyContent: "center"}}>
+                {generateBottom()}
+            </div>
+
         </div>
     );
 }
