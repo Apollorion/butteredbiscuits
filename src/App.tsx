@@ -1,91 +1,130 @@
-import React, {useState, useEffect} from 'react';
-import axios from 'axios';
+import React from 'react';
 import './App.css';
+import {IData, IFormattedData} from './types';
 
-const csvLocation = "https://apollorion.com/butteredbiscuits/1nFpPN3mNeq1Wwk3rNZeSxYoVZCQ0xH4NO1wvevs6Y5w.csv";
-
-interface CSVData {
-    date: string,
-    publish: string,
-    what_i_ate: string,
-    calories: string,
-    weight: string,
-    meal_type: string
+function importAll(r: any) {
+    return r.keys().map(r);
 }
 
-function parseCSV(str: string): CSVData[] {
-    let strArray = str.split("\r\n");
-    let i = 0;
-    let headers = [];
-    let newArr = [];
-    for(let item of strArray){
-        let data = item.split(",");
-        if(i === 0){
-            for(let head of data){
-                headers.push(head.toLowerCase().replaceAll(" ", "_"));
-            }
-        } else {
-            let i2 = 0;
-            let tempObject = {};
-            for(let datapoint of data){
-                // @ts-ignore
-                tempObject[headers[i2]] = datapoint;
-                i2++;
-            }
-            newArr.push(tempObject as CSVData);
-        }
-        i++;
-    }
-    return newArr.reverse();
-}
+const dataPoints: IData[] = importAll(require.context('./data', false, /\.(json)$/));
 
 function App() {
-    const [data, setData] = useState<CSVData[] | undefined>(undefined);
 
-    useEffect(() => {
-        axios.get(csvLocation)
-            .then((response) => {
-                if (response.status === 200) {
-                    // @ts-ignore
-                    setData(parseCSV(response.data));
+    function generateBottom() {
+
+        let formattedData: IFormattedData = {};
+        let i = 0;
+        for (let data of dataPoints) {
+            if (i >= 30) {
+                break;
+            }
+
+            const metrics = data.data.metrics;
+            for (let metric of metrics) {
+                for (let point of metric.data) {
+                    let date = point.date.split(" ")[0]
+                    if ("qty" in point) {
+                        // only process weight_body_mass once
+                        if (metric.name === "weight_body_mass") {
+                            if (metric.data.length > 0) {
+                                formattedData[date] = {};
+                                formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
+                            }
+                        } else {
+                            if (date in formattedData && metric.name in formattedData[date]) {
+                                // @ts-ignore
+                                formattedData[date][metric.name].qty = Math.round(formattedData[date][metric.name].qty + point.qty);
+                            } else {
+                                if(date in formattedData){
+                                    formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
+                                } else {
+                                    formattedData[date] = {};
+                                    formattedData[date][metric.name] = {unit: metric.units, qty: Math.round(point.qty)};
+                                }
+                            }
+                        }
+                    } else {
+                        if (date in formattedData && metric.name in formattedData[date]) {
+                            // @ts-ignore
+                            if (point.Min < formattedData[date][metric.name].min) {
+                                formattedData[date][metric.name].min = point.Min;
+                            }
+
+                            // @ts-ignore
+                            if (point.Max < formattedData[date][metric.name].max) {
+                                formattedData[date][metric.name].max = point.Max;
+                            }
+                        } else {
+                            if(date in formattedData){
+                                formattedData[date][metric.name] = {unit: metric.units, min: point.Min, max: point.Max};
+                            } else {
+                                formattedData[date] = {};
+                                formattedData[date][metric.name] = {unit: metric.units, min: point.Min, max: point.Max};
+                            }
+                        }
+                    }
                 }
-            });
-    }, []);
-
-    if(data === undefined){
-        return (
-            <div className="App">
-                <h1>Buttered Biscuts!</h1>
-                loading data...
-            </div>
-        )
-    }
-
-    console.log(data);
-
-    function generateBottom(){
-        if(data === undefined){
-            return [];
+            }
+            i++;
         }
 
         let bottomArr = [];
-        let i = 0;
-        for(let item of data){
+        i = 0;
+        for(let date in formattedData){
+            let data = formattedData[date];
 
-            if(i === 30){
-                return bottomArr;
+            let appendable = "";
+            for(let key in data){
+                let item = data[key];
+                switch(key){
+                    case "apple_exercise_time": {
+                        appendable = appendable + `Time Exercising: ${item.qty} ${item.unit}\n`;
+                        break;
+                    }
+                    case "apple_stand_time": {
+                        appendable = appendable + `Time Standing: ${item.qty} ${item.unit}\n`;
+                        break;
+                    }
+                    case "carbohydrates": {
+                        appendable = appendable + `Carbs Eaten: ${item.qty} ${item.unit}\n`;
+                        break;
+                    }
+                    case "number_of_times_fallen": {
+                        appendable = appendable + `Times Fallen: ${item.qty}\n`;
+                        break;
+                    }
+                    case "protein": {
+                        appendable = appendable + `Protein Eaten: ${item.qty} ${item.unit}\n`;
+                        break;
+                    }
+                    case "step_count": {
+                        appendable = appendable + `Steps Taken: ${item.qty}\n`;
+                        break;
+                    }
+                    case "weight_body_mass": {
+                        appendable = appendable + `Weight: ${item?.qty} ${item.unit}\n`;
+                        break;
+                    }
+                    case "heart_rate": {
+                        appendable = appendable + `Heart Rate Min: ${item?.min} bpm\n`;
+                        appendable = appendable + `Heart Rate Max: ${item?.max} bpm\n`;
+                        break;
+                    }
+                    default: {
+                        console.log("Default switch hit, this is a problem.");
+                        break;
+                    }
+                }
             }
-
-            if(item.publish === "yes"){
-                bottomArr.push((
-                    <p key={i}>
-                        Date: {item.date}, Meal Type: {item.meal_type}<br/>
-                        Food: {item.what_i_ate}, Calories: {item.calories}, Weight: {item.weight}
-                    </p>
-                ))
-                i++;
-            }
+            bottomArr.push(
+                <div key={i}>
+                    <b>Date: {date}</b><br/>
+                    {appendable.split('\n').map((str, it) => <div key={it}>{str}</div>)}<br/><br/>
+                </div>
+            )
+            i++;
         }
+
         return bottomArr;
     }
 
@@ -96,12 +135,14 @@ function App() {
                 Hi, I'm Joey and I'm on a journey to play hockey for the first time.
             </p>
             <p>
-                I'm starting from zero; no experience skating, playing hockey, working out or caring about my body in general.
+                I'm starting from zero; no experience skating, playing hockey, working out or caring about my body in
+                general.
                 From top down, I've been a couch potato nearly my entire life.
-                I'm also a software engineer and I thought it would be cool to publish my journey in a machine readable format so it can be used for <i><b>science</b></i>!
+                I'm also a software engineer and I thought it would be cool to publish my journey in a machine readable
+                format so it can be used for <i><b>science</b></i>!
             </p>
             <p>
-                Download the dataset <a href={csvLocation}>here</a>!<br/>
+                Download the datasets <a href="https://github.com/Apollorion/butteredbiscuits/tree/main/src/data">here</a>!<br/>
             </p>
 
             {generateBottom()}

@@ -320,13 +320,6 @@
         "name" : "protein"
       },
       {
-        "name" : "respiratory_rate",
-        "data" : [
-
-        ],
-        "units" : "count\/min"
-      },
-      {
         "name" : "step_count",
         "data" : [
           {
